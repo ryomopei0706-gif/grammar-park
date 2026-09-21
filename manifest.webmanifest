@@ -1,0 +1,16 @@
+{
+  "name": "Grammar Park",
+  "short_name": "Grammar Park",
+  "description": "中学英文法を会話で使える形で身につける自分専用トレーナー",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F3F5F8",
+  "theme_color": "#101C36",
+  "lang": "ja",
+  "icons": [
+    { "src": "icon-180.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

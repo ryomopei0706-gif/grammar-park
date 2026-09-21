@@ -1,0 +1,4 @@
+.DS_Store
+grammar-park_*.json
+*.bak
+__pycache__/
