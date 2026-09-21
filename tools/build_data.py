@@ -87,6 +87,13 @@ def parse_block_row(line):
 def tokens_of(sentence):
     return sentence.split()
 
+def check_error_item(qid, en, e, f):
+    """誤り探しは「文中の1語を別の語に置き換える」形だけ許す（語順の誤りは 比較／並べ替え で出す）"""
+    words = [w.strip(".,!?").lower() for w in en.split()]
+    if e.lower() not in words: err(f"{qid}: 誤り語「{e}」が文中に無い")
+    if f.lower() in words: err(f"{qid}: 直す先「{f}」がすでに文中にある＝語順の誤り。誤り探しではなく 比較 か 並べ替え にする")
+    if words.count(e.lower()) > 1: warn(f"{qid}: 誤り語「{e}」が文中に2回ある（どちらをタップしても正解になる）")
+
 # ---------------------------------------------------------------- units
 def parse_unit(path):
     text = open(path, encoding="utf-8").read()
@@ -144,8 +151,7 @@ def parse_unit(path):
                 notice.append({"id": nid, "type": "Q-01", "ja": p[1], "a": p[2], "b": p[3], "ans": p[4], "why": p[5] if len(p) > 5 else ""})
             elif p[0] == "誤り":
                 e, f = [x.strip() for x in p[2].split("→", 1)]
-                if e not in tokens_of(p[1].replace(".", "").replace("?", "").replace("!", "").replace(",", "")) and e not in p[1].split():
-                    warn(f"{nid}: 誤り語「{e}」が文中の単語と一致しない")
+                check_error_item(nid, p[1], e, f)
                 notice.append({"id": nid, "type": "Q-02", "en": p[1], "err": e, "fix": f, "why": p[3] if len(p) > 3 else ""})
             else:
                 err(f"{nid}: 気づくの種類 {p[0]} は不明")
@@ -183,6 +189,7 @@ def parse_unit(path):
                 drill.append({"id": did, "type": "Q-07", "en": p[1], "inst": p[2], "ans": ans})
             elif kind == "誤り":
                 e, f = [x.strip() for x in p[2].split("→", 1)]
+                check_error_item(did, p[1], e, f)
                 drill.append({"id": did, "type": "Q-02", "en": p[1], "err": e, "fix": f, "why": p[3] if len(p) > 3 else ""})
             else:
                 err(f"{did}: 練習の種類 {kind} は不明")

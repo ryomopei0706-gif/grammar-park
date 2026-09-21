@@ -112,16 +112,17 @@ function rQ01(item, root, finish) {
 /* ---- 誤り探し ---- */
 function rQ02(item, root, finish) {
   const d = item.data; const words = d.en.split(' ');
-  root.innerHTML = head(item, item.phase === 'lesson' ? '気づく' : '復習') + `<div class="inst">まちがっている語をタップ</div>
-    <div class="words">${words.map((w, i) => `<button class="w" data-i="${i}">${esc(w)}</button>`).join('')}</div>${whyBtn(item)}`;
+  root.innerHTML = head(item, item.phase === 'lesson' ? '気づく' : '復習') + `<div class="prompt" style="font-size:1.125rem;font-weight:600;color:var(--ink2)">この文には、まちがっている単語が<b style="color:var(--accent)">1つ</b>あります</div>
+    <div class="words">${words.map((w, i) => `<button class="w" data-i="${i}">${esc(w)}</button>`).join('')}</div>
+    <div class="inst">その単語をタップ →</div>${whyBtn(item)}`;
   bindWhy(root, item); const t0 = nowMs();
   const strip = w => w.replace(/[.,!?]/g, '');
   $$('.w', root).forEach(b => b.addEventListener('click', () => {
     const w = strip(words[b.dataset.i]); const ok = w.toLowerCase() === d.err.toLowerCase();
     $$('.w', root).forEach(x => { x.disabled = true; if (strip(words[x.dataset.i]).toLowerCase() === d.err.toLowerCase()) x.classList.add('right'); else if (x === b) x.classList.add('pick'); });
-    const fixed = words.map(x => strip(x).toLowerCase() === d.err.toLowerCase() ? x.replace(strip(x), d.fix) : x).join(' ');
-    const fixedCap = fixed.charAt(0).toUpperCase() + fixed.slice(1);
-    feedback(root, ok, esc(fixedCap), '', d.why, '', item);
+    const fixedHtml = words.map(x => strip(x).toLowerCase() === d.err.toLowerCase() ? esc(x.replace(strip(x), d.fix)).replace(esc(d.fix), `<span style="color:var(--accent)">${esc(d.fix)}</span>`) : esc(x)).join(' ');
+    const fixedCap = fixedHtml.charAt(0) === '<' ? fixedHtml : fixedHtml.charAt(0).toUpperCase() + fixedHtml.slice(1);
+    feedback(root, ok, fixedCap, `${d.err} → ${d.fix}`, d.why, '', item);
     nextBtn(root, () => finish({ correct: ok, q: ok ? autoRate(true, nowMs() - t0) : 0 }));
   }));
 }

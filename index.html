@@ -262,7 +262,7 @@ select.sel{padding:8px 10px;border-radius:12px;border:1.5px solid var(--line);ba
 <div id="app"></div>
 <div id="modal-root"></div>
 <div id="toast"></div>
-<script src="data/content.js?v=20260921-2311"></script>
+<script src="data/content.js?v=20260921-2333"></script>
 <script>
 /* ===== 10_core.js ===== */
 'use strict';
@@ -965,7 +965,7 @@ function renderLog() {
     <div class="card"><div class="eyebrow">${y}年${m}月</div><div class="cal">${cells}</div><div class="sub">◌ 点線＝凍結した日</div></div>
     <div class="stat-row"><div class="stat"><div class="v">${S.streak.cur}</div><div class="k">連続入園</div></div><div class="stat"><div class="v">${S.streak.best}</div><div class="k">最長</div></div><div class="stat"><div class="v">${monthDays}</div><div class="k">今月の日数</div></div></div>
     <div class="stat-row"><div class="stat"><div class="v">${S.said.length}</div><div class="k">言えた文</div></div><div class="stat"><div class="v">${mastered}</div><div class="k">★5ユニット</div></div><div class="stat"><div class="v">${a7 ? Math.round(c7 / a7 * 100) : '–'}%</div><div class="k">正解率 7日</div></div></div>
-    <div class="card"><div class="eyebrow">くわしい統計</div><div class="small">カード ${cc.total} 枚（今日の期日 ${cc.due}、★5 ${cc.mastered}）<br>累計 ${S.xp} xp ／ コイン ${S.coins}<br>教材 ${S.content || '–'} ／ アプリ 20260921-2311</div></div>
+    <div class="card"><div class="eyebrow">くわしい統計</div><div class="small">カード ${cc.total} 枚（今日の期日 ${cc.due}、★5 ${cc.mastered}）<br>累計 ${S.xp} xp ／ コイン ${S.coins}<br>教材 ${S.content || '–'} ／ アプリ 20260921-2333</div></div>
   </div>`;
 }
 function bindLog(root) { }
@@ -999,7 +999,7 @@ function renderSettings() {
       <button class="btn line" id="reset" style="color:var(--ng)">この端末のデータを消す</button>
     </div>
     <div class="card"><div class="eyebrow">iPhone で使う</div><div class="small">Safari で開いて 共有 → 「ホーム画面に追加」。毎日のリマインドは iPhone の『ショートカット』アプリで「オートメーション → 時刻 → URLを開く」にこのページのURLを入れると作れます。</div>
-      <div class="small muted">教材 ${S.content || '–'} ／ アプリ 20260921-2311</div></div>
+      <div class="small muted">教材 ${S.content || '–'} ／ アプリ 20260921-2333</div></div>
   </div>`;
 }
 function bindSettings(root) {
@@ -1150,16 +1150,17 @@ function rQ01(item, root, finish) {
 /* ---- 誤り探し ---- */
 function rQ02(item, root, finish) {
   const d = item.data; const words = d.en.split(' ');
-  root.innerHTML = head(item, item.phase === 'lesson' ? '気づく' : '復習') + `<div class="inst">まちがっている語をタップ</div>
-    <div class="words">${words.map((w, i) => `<button class="w" data-i="${i}">${esc(w)}</button>`).join('')}</div>${whyBtn(item)}`;
+  root.innerHTML = head(item, item.phase === 'lesson' ? '気づく' : '復習') + `<div class="prompt" style="font-size:1.125rem;font-weight:600;color:var(--ink2)">この文には、まちがっている単語が<b style="color:var(--accent)">1つ</b>あります</div>
+    <div class="words">${words.map((w, i) => `<button class="w" data-i="${i}">${esc(w)}</button>`).join('')}</div>
+    <div class="inst">その単語をタップ →</div>${whyBtn(item)}`;
   bindWhy(root, item); const t0 = nowMs();
   const strip = w => w.replace(/[.,!?]/g, '');
   $$('.w', root).forEach(b => b.addEventListener('click', () => {
     const w = strip(words[b.dataset.i]); const ok = w.toLowerCase() === d.err.toLowerCase();
     $$('.w', root).forEach(x => { x.disabled = true; if (strip(words[x.dataset.i]).toLowerCase() === d.err.toLowerCase()) x.classList.add('right'); else if (x === b) x.classList.add('pick'); });
-    const fixed = words.map(x => strip(x).toLowerCase() === d.err.toLowerCase() ? x.replace(strip(x), d.fix) : x).join(' ');
-    const fixedCap = fixed.charAt(0).toUpperCase() + fixed.slice(1);
-    feedback(root, ok, esc(fixedCap), '', d.why, '', item);
+    const fixedHtml = words.map(x => strip(x).toLowerCase() === d.err.toLowerCase() ? esc(x.replace(strip(x), d.fix)).replace(esc(d.fix), `<span style="color:var(--accent)">${esc(d.fix)}</span>`) : esc(x)).join(' ');
+    const fixedCap = fixedHtml.charAt(0) === '<' ? fixedHtml : fixedHtml.charAt(0).toUpperCase() + fixedHtml.slice(1);
+    feedback(root, ok, fixedCap, `${d.err} → ${d.fix}`, d.why, '', item);
     nextBtn(root, () => finish({ correct: ok, q: ok ? autoRate(true, nowMs() - t0) : 0 }));
   }));
 }
