@@ -48,14 +48,18 @@ function renderQuestion(item, root, done) {
 }
 function unitLabel(item) { const u = IDX.unit[item.unit]; return u ? `${u.id} ／ ${u.short}` : ''; }
 function head(item, title) { return `<div class="eyebrow center">${esc(unitLabel(item))}${title ? ' ／ ' + esc(title) : ''}</div>`; }
+/* HTML（エスケープ済み・タグ入り）→ 読み上げ用の素のテキスト */
+const _ta = document.createElement('textarea');
+function plainText(html) { _ta.innerHTML = String(html || '').replace(/<[^>]+>/g, ''); return _ta.value; }
 function feedback(root, ok, en, ja, why, alt, item) {
   const band = document.createElement('div'); band.className = 'fb ' + (ok ? 'ok' : 'ng');
+  const say = plainText(en);
   band.innerHTML = `<div><b>${ok ? '✓ 正解' : '→ 正解は'}</b></div>
-    <div class="en"><span>${en}</span>${spkBtn(en.replace(/<[^>]+>/g, ''))}</div>
+    <div class="en"><span>${en}</span>${spkBtn(say)}</div>
     ${ja ? `<div class="alt">${esc(ja)}</div>` : ''}${why ? `<div class="why">${esc(why)}</div>` : ''}${alt ? `<div class="alt">ほかの言い方：${esc(alt)}</div>` : ''}`;
   root.appendChild(band); bindSpk(band);
   sfx(ok ? 'ok' : 'ng');
-  speak(en.replace(/<[^>]+>/g, ''), 'en');
+  speak(say, 'en');
   return band;
 }
 function nextBtn(root, cb, label = '次へ →') {

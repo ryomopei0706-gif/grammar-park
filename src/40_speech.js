@@ -19,20 +19,26 @@ function speak(text, lang = 'en', opts = {}) {
   if (!opts.force && !S.settings.tts) return Promise.resolve();
   return new Promise(res => {
     try {
-      speechSynthesis.cancel();
+      const tok = ++speakToken;
+      // iOS: cancel() の直後に speak() すると鳴らない・途中で切れることがあるので、少し待ってから話す
+      if (speechSynthesis.speaking || speechSynthesis.pending) speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(text);
       const v = pickVoice(lang); if (v) u.voice = v;
       u.lang = lang === 'en' ? 'en-US' : 'ja-JP';
       u.rate = lang === 'en' ? (opts.rate || S.settings.ttsRate) : 1.0;
-      const tok = ++speakToken;
       u.onend = () => { if (tok === speakToken) markSpeaking(false); res(); };
-      u.onerror = () => { markSpeaking(false); res(); };
+      u.onerror = ev => { if (tok === speakToken) markSpeaking(false); if (ev && ev.error && ev.error !== 'interrupted' && ev.error !== 'canceled') console.warn('tts', ev.error); res(); };
       markSpeaking(true, opts.el);
-      speechSynthesis.speak(u);
-      setTimeout(() => { if (tok === speakToken && speechSynthesis.speaking === false) { markSpeaking(false); res(); } }, 200 + text.length * 120);
+      lastUtter = u; // GC で途中停止するのを防ぐ（Safari の既知の癖）
+      setTimeout(() => {
+        if (tok !== speakToken) { res(); return; }
+        try { if (speechSynthesis.paused) speechSynthesis.resume(); speechSynthesis.speak(u); } catch (e) { markSpeaking(false); res(); }
+      }, 80);
+      setTimeout(() => { if (tok === speakToken && !speechSynthesis.speaking) { markSpeaking(false); res(); } }, 600 + text.length * 120);
     } catch (e) { markSpeaking(false); res(); }
   });
 }
+let lastUtter = null;
 function stopSpeak() { try { speechSynthesis.cancel(); } catch (e) { } markSpeaking(false); }
 let speakingEl = null;
 function markSpeaking(on, el) {

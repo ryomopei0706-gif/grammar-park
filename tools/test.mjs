@@ -118,9 +118,9 @@ section('レベル・連続入園・クエスト');
   eq(S.streak.cur, 0, '週の凍結枠2つを超えたら切れる'); eq(S.streak.best, 2, '最長は残る');
 }
 {
-  const S = X.DEFAULT_STATE(); X.S = S; X.questTick('2026-09-21');
+  const S = X.DEFAULT_STATE(); X.S = S; const T = X.todayStr(); X.questTick(T);
   X.questUpdate('review'); X.questUpdate('step'); ok(!X.questBonus(), '2つでは付かない');
-  S.days['2026-09-21'] = { spoken: 10 }; X.questUpdate('spoken'); ok(X.questBonus(), '3つで付く'); ok(!X.questBonus(), '2回目は付かない'); eq(S.coins, 10, 'コイン');
+  S.days[T] = { spoken: 10 }; X.questUpdate('spoken'); ok(X.questBonus(), '3つで付く'); ok(!X.questBonus(), '2回目は付かない'); eq(S.coins, 10, 'コイン');
 }
 
 section('バックアップ');

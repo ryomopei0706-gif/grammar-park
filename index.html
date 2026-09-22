@@ -262,7 +262,7 @@ select.sel{padding:8px 10px;border-radius:12px;border:1.5px solid var(--line);ba
 <div id="app"></div>
 <div id="modal-root"></div>
 <div id="toast"></div>
-<script src="data/content.js?v=20260921-2333"></script>
+<script src="data/content.js?v=20260922-1151"></script>
 <script>
 /* ===== 10_core.js ===== */
 'use strict';
@@ -620,20 +620,26 @@ function speak(text, lang = 'en', opts = {}) {
   if (!opts.force && !S.settings.tts) return Promise.resolve();
   return new Promise(res => {
     try {
-      speechSynthesis.cancel();
+      const tok = ++speakToken;
+      // iOS: cancel() の直後に speak() すると鳴らない・途中で切れることがあるので、少し待ってから話す
+      if (speechSynthesis.speaking || speechSynthesis.pending) speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(text);
       const v = pickVoice(lang); if (v) u.voice = v;
       u.lang = lang === 'en' ? 'en-US' : 'ja-JP';
       u.rate = lang === 'en' ? (opts.rate || S.settings.ttsRate) : 1.0;
-      const tok = ++speakToken;
       u.onend = () => { if (tok === speakToken) markSpeaking(false); res(); };
-      u.onerror = () => { markSpeaking(false); res(); };
+      u.onerror = ev => { if (tok === speakToken) markSpeaking(false); if (ev && ev.error && ev.error !== 'interrupted' && ev.error !== 'canceled') console.warn('tts', ev.error); res(); };
       markSpeaking(true, opts.el);
-      speechSynthesis.speak(u);
-      setTimeout(() => { if (tok === speakToken && speechSynthesis.speaking === false) { markSpeaking(false); res(); } }, 200 + text.length * 120);
+      lastUtter = u; // GC で途中停止するのを防ぐ（Safari の既知の癖）
+      setTimeout(() => {
+        if (tok !== speakToken) { res(); return; }
+        try { if (speechSynthesis.paused) speechSynthesis.resume(); speechSynthesis.speak(u); } catch (e) { markSpeaking(false); res(); }
+      }, 80);
+      setTimeout(() => { if (tok === speakToken && !speechSynthesis.speaking) { markSpeaking(false); res(); } }, 600 + text.length * 120);
     } catch (e) { markSpeaking(false); res(); }
   });
 }
+let lastUtter = null;
 function stopSpeak() { try { speechSynthesis.cancel(); } catch (e) { } markSpeaking(false); }
 let speakingEl = null;
 function markSpeaking(on, el) {
@@ -965,7 +971,7 @@ function renderLog() {
     <div class="card"><div class="eyebrow">${y}年${m}月</div><div class="cal">${cells}</div><div class="sub">◌ 点線＝凍結した日</div></div>
     <div class="stat-row"><div class="stat"><div class="v">${S.streak.cur}</div><div class="k">連続入園</div></div><div class="stat"><div class="v">${S.streak.best}</div><div class="k">最長</div></div><div class="stat"><div class="v">${monthDays}</div><div class="k">今月の日数</div></div></div>
     <div class="stat-row"><div class="stat"><div class="v">${S.said.length}</div><div class="k">言えた文</div></div><div class="stat"><div class="v">${mastered}</div><div class="k">★5ユニット</div></div><div class="stat"><div class="v">${a7 ? Math.round(c7 / a7 * 100) : '–'}%</div><div class="k">正解率 7日</div></div></div>
-    <div class="card"><div class="eyebrow">くわしい統計</div><div class="small">カード ${cc.total} 枚（今日の期日 ${cc.due}、★5 ${cc.mastered}）<br>累計 ${S.xp} xp ／ コイン ${S.coins}<br>教材 ${S.content || '–'} ／ アプリ 20260921-2333</div></div>
+    <div class="card"><div class="eyebrow">くわしい統計</div><div class="small">カード ${cc.total} 枚（今日の期日 ${cc.due}、★5 ${cc.mastered}）<br>累計 ${S.xp} xp ／ コイン ${S.coins}<br>教材 ${S.content || '–'} ／ アプリ 20260922-1151</div></div>
   </div>`;
 }
 function bindLog(root) { }
@@ -999,7 +1005,7 @@ function renderSettings() {
       <button class="btn line" id="reset" style="color:var(--ng)">この端末のデータを消す</button>
     </div>
     <div class="card"><div class="eyebrow">iPhone で使う</div><div class="small">Safari で開いて 共有 → 「ホーム画面に追加」。毎日のリマインドは iPhone の『ショートカット』アプリで「オートメーション → 時刻 → URLを開く」にこのページのURLを入れると作れます。</div>
-      <div class="small muted">教材 ${S.content || '–'} ／ アプリ 20260921-2333</div></div>
+      <div class="small muted">教材 ${S.content || '–'} ／ アプリ 20260922-1151</div></div>
   </div>`;
 }
 function bindSettings(root) {
@@ -1086,14 +1092,18 @@ function renderQuestion(item, root, done) {
 }
 function unitLabel(item) { const u = IDX.unit[item.unit]; return u ? `${u.id} ／ ${u.short}` : ''; }
 function head(item, title) { return `<div class="eyebrow center">${esc(unitLabel(item))}${title ? ' ／ ' + esc(title) : ''}</div>`; }
+/* HTML（エスケープ済み・タグ入り）→ 読み上げ用の素のテキスト */
+const _ta = document.createElement('textarea');
+function plainText(html) { _ta.innerHTML = String(html || '').replace(/<[^>]+>/g, ''); return _ta.value; }
 function feedback(root, ok, en, ja, why, alt, item) {
   const band = document.createElement('div'); band.className = 'fb ' + (ok ? 'ok' : 'ng');
+  const say = plainText(en);
   band.innerHTML = `<div><b>${ok ? '✓ 正解' : '→ 正解は'}</b></div>
-    <div class="en"><span>${en}</span>${spkBtn(en.replace(/<[^>]+>/g, ''))}</div>
+    <div class="en"><span>${en}</span>${spkBtn(say)}</div>
     ${ja ? `<div class="alt">${esc(ja)}</div>` : ''}${why ? `<div class="why">${esc(why)}</div>` : ''}${alt ? `<div class="alt">ほかの言い方：${esc(alt)}</div>` : ''}`;
   root.appendChild(band); bindSpk(band);
   sfx(ok ? 'ok' : 'ng');
-  speak(en.replace(/<[^>]+>/g, ''), 'en');
+  speak(say, 'en');
   return band;
 }
 function nextBtn(root, cb, label = '次へ →') {
